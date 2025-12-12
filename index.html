@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>NewAura Spanish — Rebuilt Version</title>
+<style>
+body {
+  font-family: "Noto Sans", sans-serif;
+  background: #f3f6ff;
+  margin: 0;
+  padding: 0;
+  text-align: center;
+}
+header {
+  font-size: 30px;
+  padding: 20px;
+  background: white;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  margin-bottom: 20px;
+}
+button {
+  padding: 14px 26px;
+  border-radius: 40px;
+  border: none;
+  cursor: pointer;
+  background: #1d5bff;
+  color: white;
+  font-size: 18px;
+  margin: 10px;
+  transition: 0.2s;
+}
+button:hover {
+  background: #003ecb;
+}
+#mainMenu button {
+  width: 260px;
+}
+.section {
+  display: none;
+  margin-top: 20px;
+}
+.card {
+  background: white;
+  padding: 25px;
+  width: 320px;
+  margin: 20px auto;
+  border-radius: 18px;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.1);
+  font-size: 24px;
+}
+input, select {
+  font-size: 18px;
+  padding: 10px;
+  margin: 8px;
+}
+.wordBank {
+  background: #fff;
+  padding: 15px;
+  border-radius: 10px;
+  width: 300px;
+  margin: 10px auto;
+  box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+}
+</style>
+</head>
+<body>
+<header>NewAura Spanish Practice</header>
+<div id="mainMenu">
+  <button onclick="openSection('flashcards')">Flashcards</button><br>
+  <button onclick="openSection('quiz')">Quiz</button><br>
+  <button onclick="openSection('fillBlank')">Fill in the Blank</button><br>
+  <button onclick="openSection('importWords')">Add / Manage Words</button>
+</div>
+
+<!-- FLASHCARDS -->
+<div id="flashcards" class="section">
+  <div class="card" id="flashcardWord">Press Next</div>
+  <button onclick="showAnswerFlash()">Flip (Show Answer)</button>
+  <button onclick="nextFlash()">Next</button><br>
+  <button onclick="backToMenu()">Back</button>
+</div>
+
+<!-- QUIZ -->
+<div id="quiz" class="section">
+  <div class="card" id="quizQuestion">Press Next</div>
+  <div id="quizChoices"></div>
+  <button onclick="nextQuiz()">Next Question</button><br>
+  <button onclick="backToMenu()">Back</button>
+</div>
+
+<!-- FILL IN THE BLANK -->
+<div id="fillBlank" class="section">
+  <p><strong>Fill in the blank using the correct Spanish vocabulary word.</strong></p>
+  <div class="card" id="sentenceCard">Press Next</div>
+  <input id="blankInput" placeholder="Type your answer in Spanish" />
+  <button onclick="checkBlank()">Check</button>
+  <div class="wordBank" id="wordBank"></div>
+  <button onclick="nextSentence()">Next Sentence</button><br>
+  <button onclick="backToMenu()">Back</button>
+</div>
+
+<!-- IMPORT WORDS -->
+<div id="importWords" class="section">
+  <p><strong>When adding a word, write the word (in Spanish), the part of speech (in English), and what the word means (in English).</strong></p>
+  <input id="wordSpanish" placeholder="Spanish word" />
+  <select id="wordType">
+    <option>noun</option>
+    <option>verb</option>
+    <option>adjective</option>
+    <option>adverb</option>
+    <option>conjunction</option>
+    <option>article</option>
+  </select>
+  <input id="wordEnglish" placeholder="Meaning in English" />
+  <button onclick="addWord()">Add Word</button>
+  <div id="wordList"></div>
+  <button onclick="backToMenu()">Back</button>
+</div>
+
+<script>
+let words = JSON.parse(localStorage.getItem("words")) || [];
+let flashIndex = 0;
+let quizIndex = 0;
+let blankIndex = 0;
+
+function save() {
+  localStorage.setItem("words", JSON.stringify(words));
+}
+
+function openSection(id) {
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  document.getElementById('mainMenu').style.display = 'none';
+  document.getElementById(id).style.display = 'block';
+
+  if (id === 'importWords') renderWordList();
+}
+
+function backToMenu() {
+  document.querySelectorAll('.section').forEach(s => s.style.display = 'none');
+  document.getElementById('mainMenu').style.display = 'block';
+}
+
+// IMPORT
+function addWord() {
+  let sp = document.getElementById('wordSpanish').value.trim();
+  let type = document.getElementById('wordType').value.trim();
+  let en = document.getElementById('wordEnglish').value.trim();
+  if (!sp || !en) return alert("Fill all fields");
+  words.push({sp, type, en});
+  save();
+  renderWordList();
+}
+function renderWordList() {
+  let out = "";
+  words.forEach(w => out += `<div>${w.sp} — ${w.type} — ${w.en}</div>`);
+  document.getElementById('wordList').innerHTML = out;
+}
+
+// FLASHCARDS
+function nextFlash() {
+  if (words.length === 0) return;
+  flashIndex = Math.floor(Math.random() * words.length);
+  document.getElementById("flashcardWord").innerText = words[flashIndex].sp;
+}
+function showAnswerFlash() {
+  if (words.length === 0) return;
+  document.getElementById("flashcardWord").innerText = words[flashIndex].en;
+}
+
+// QUIZ
+function nextQuiz() {
+  if (words.length === 0) return;
+  quizIndex = Math.floor(Math.random() * words.length);
+  let w = words[quizIndex];
+  document.getElementById("quizQuestion").innerText = "What does '" + w.sp + "' mean?";
+  let choices = shuffle([w.en, ...getRandomIncorrect(w.en, 3)]);
+  let out = "";
+  choices.forEach(c => out += `<button onclick=checkQuiz('${c.replace(/'/g,"&#39;")}')>${c}</button><br>`);
+  document.getElementById("quizChoices").innerHTML = out;
+}
+function checkQuiz(ans) {
+  let correct = words[quizIndex].en;
+  alert(ans === correct ? "Correct!" : "Wrong — correct is: " + correct);
+}
+function getRandomIncorrect(correct, count) {
+  let arr = words.filter(w => w.en !== correct).map(w => w.en);
+  shuffle(arr);
+  return arr.slice(0, count);
+}
+
+// FILL IN THE BLANK
+function nextSentence() {
+  if (words.length === 0) return;
+
+  blankIndex = Math.floor(Math.random() * words.length);
+  let w = words[blankIndex];
+
+  let sentence = generateSentence(w);
+  document.getElementById("sentenceCard").innerText = sentence;
+
+  let bank = shuffle(words.map(w => w.sp));
+  document.getElementById('wordBank').innerText = bank.join(', ');
+}
+
+function checkBlank() {
+  let guess = document.getElementById('blankInput').value.trim();
+  let correct = words[blankIndex].sp;
+  alert(guess === correct ? "Correct!" : "Incorrect — correct answer: " + correct);
+}
+
+function generateSentence(word) {
+  let w = word.sp;
+  let type = word.type;
+
+  if (type === "verb") return `La niña ____ todos los días porque es su hábito.`;
+  if (type === "noun") return `El ____ está sobre la mesa y todos pueden verlo.`;
+  if (type === "adjective") return `La casa es muy ____ y todos la admiran.`;
+  if (type === "adverb") return `Ella corre ____ para llegar a tiempo.`;
+  if (type === "conjunction") return `Quiero salir ____ hace buen clima.`;
+  if (type === "article") return `____ niño está jugando afuera.`;
+
+  return `____ se usa en una frase.`;
+}
+
+// UTILS
+function shuffle(a) { for (let i=a.length-1;i>0;i--){let j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; }
+</script>
+
+</body>
+</html>
